@@ -154,7 +154,7 @@ function head(title, counter = '', game = false) {
 function brand() {
   return '<div class="brand"><i class="mark">' + ico('book') + '</i><span>Spea<span>Kids</span></span></div>';
 }
-function topBar() {
+function top() {
   return '<header class="top">' + brand() + star() + '</header>';
 }
 function banner(k, title, body, icon) {
@@ -192,7 +192,7 @@ function home() {
     l = resumeLevel(),
     x = CATEGORIES[c],
     current = x.levels[l];
-  return topBar() + '<div class="heading"><h1>Halo, ' + esc(profile.name) + '!</h1><p>Piko siap belajar bersamamu.</p></div><div class="hero"><div><small class="kicker">Belajar bersama Piko</small><h2>Yuk, jelajahi bahasa Inggris!</h2>' + action('learn', 'Mulai Belajar ' + ico('right'), 'primarybtn sun') + '</div>' + owl('heroimg') + '</div>' + section('Lanjutkan Latihan') + tileCard({
+  return top() + '<div class="heading"><h1>Halo, ' + esc(profile.name) + '!</h1><p>Piko siap belajar bersamamu.</p></div><div class="hero"><div><small class="kicker">Belajar bersama Piko</small><h2>Yuk, jelajahi bahasa Inggris!</h2>' + action('learn', 'Mulai Belajar ' + ico('right'), 'primarybtn sun') + '</div>' + owl('heroimg') + '</div>' + section('Lanjutkan Latihan') + tileCard({
     ...x,
     title: current.title,
     desc: profile.done[c] === 5 ? 'Ulangi tantangan favoritmu.' : x.short + ' · ' + (profile.missions[c + '-' + l] ? stages[profile.missions[c + '-' + l].stage] : 'Dengar & kenali')
@@ -200,7 +200,7 @@ function home() {
 }
 function menu(isGame) {
   const a = isGame ? GAMES : CATEGORIES.map((c,i) => activeCategories.includes(i) ? c : null);
-  return (isGame ? topBar() : head('SpeaKids')) + banner(isGame ? 'Taman bermain' : 'Buku petualangan', isGame ? 'Permainan' : 'Belajar', isGame ? 'Pilih permainan favoritmu.' : 'Pilih yang ingin kamu pelajari.', isGame ? 'phones' : 'book') + '<div class="stack category">' + a.map((x, i) => tileCard(x, isGame ? 'game' : 'category', i)).join('') + '</div>';
+  return (isGame ? top() : head('SpeaKids')) + banner(isGame ? 'Taman bermain' : 'Buku petualangan', isGame ? 'Permainan' : 'Belajar', isGame ? 'Pilih permainan favoritmu.' : 'Pilih yang ingin kamu pelajari.', isGame ? 'phones' : 'book') + '<div class="stack category">' + a.map((x, i) => tileCard(x, isGame ? 'game' : 'category', i)).join('') + '</div>';
 }
 function levels() {
   const x = CATEGORIES[category];
@@ -215,7 +215,7 @@ function allLevels() {
   return head('Progres belajarku') + '<div class="heading"><h1>Semua level</h1></div><div class="stack">' + activeCategories.map(i => action('category', '<strong>' + CATEGORIES[i].short + '</strong>' + trail(i), 'mapcard', i)).join('') + '</div>';
 }
 function reward() {
-  return topBar() + '<div class="heading"><h1>Reward</h1><p>Koleksi bintang dan lencanamu.</p></div><div class="hero"><div><small class="kicker">Kantong bintang</small><h2>' + profile.stars + ' bintang</h2></div>' + owl('heroimg') + '</div>' + section('Lencana petualang') + '<div class="badges">' + activeBadges.map(i => action('badge', '<span class="medal">' + ico(badges[i][1]) + '</span><b>' + badges[i][0] + '</b><small>' + (hasBadge(i) ? 'Terkumpul' : 'Terkunci') + '</small>', 'badge ' + (hasBadge(i) ? '' : 'locked'), i)).join('') + '</div>';
+  return top() + '<div class="heading"><h1>Reward</h1><p>Koleksi bintang dan lencanamu.</p></div><div class="hero"><div><small class="kicker">Kantong bintang</small><h2>' + profile.stars + ' bintang</h2></div>' + owl('heroimg') + '</div>' + section('Lencana petualang') + '<div class="badges">' + activeBadges.map(i => action('badge', '<span class="medal">' + ico(badges[i][1]) + '</span><b>' + badges[i][0] + '</b><small>' + (hasBadge(i) ? 'Terkumpul' : 'Terkunci') + '</small>', 'badge ' + (hasBadge(i) ? '' : 'locked'), i)).join('') + '</div>';
 }
 function badgeDetail() {
   const b = badges[badgeIndex];
@@ -223,7 +223,7 @@ function badgeDetail() {
 }
 function profilePage() {
   const n = badges.filter((_, i) => hasBadge(i)).length;
-  return topBar() + '<div class="heading"><h1>Profil</h1></div><div class="panel"><div class="row">' + owl('profilepic') + '<div><h2>' + esc(profile.name) + '</h2><p>Kelas ' + esc(profile.grade) + ' SD</p>' + action('edit', 'Ubah profil', 'linkbtn') + '</div></div><div class="statrow">' + [[profile.stars, 'Bintang'], [n, 'Lencana'], [activeCategories.filter(i => profile.done[i] === 5).length + '/3', 'Kategori tamat']].map(s => '<div><b>' + s[0] + '</b><small>' + s[1] + '</small></div>').join('') + '</div><p>' + CATEGORIES[profile.last].short + ' · Level ' + (currentLevel(profile.last) + 1) + '</p></div>' + section('Kegiatan & pengaturan') + '<div class="stack">' + line('history', 'clock', 'Riwayat belajar') + line('rewards', 'gift', 'Lencana saya', n + ' lencana terkumpul') + line('audio', 'sound', 'Suara contoh', profile.audio ? 'Aktif' : 'Nonaktif') + line('help', 'help', 'Bantuan') + '</div>';
+  return top() + '<div class="heading"><h1>Profil</h1></div><div class="panel"><div class="row">' + owl('profilepic') + '<div><h2>' + esc(profile.name) + '</h2><p>Kelas ' + esc(profile.grade) + ' SD</p>' + action('edit', 'Ubah profil', 'linkbtn') + '</div></div><div class="statrow">' + [[profile.stars, 'Bintang'], [n, 'Lencana'], [activeCategories.filter(i => profile.done[i] === 5).length + '/3', 'Kategori tamat']].map(s => '<div><b>' + s[0] + '</b><small>' + s[1] + '</small></div>').join('') + '</div><p>' + CATEGORIES[profile.last].short + ' · Level ' + (currentLevel(profile.last) + 1) + '</p></div>' + section('Kegiatan & pengaturan') + '<div class="stack">' + line('history', 'clock', 'Riwayat belajar') + line('rewards', 'gift', 'Lencana saya', n + ' lencana terkumpul') + line('audio', 'sound', 'Suara contoh', profile.audio ? 'Aktif' : 'Nonaktif') + line('help', 'help', 'Bantuan') + '</div>';
 }
 function historyPage() {
   return head('Profil') + '<div class="heading"><h1>Riwayat belajar</h1></div><div class="panel">' + (profile.history.length ? profile.history.map(h => '<div class="historyline"><strong>' + esc(h.title) + '</strong><small>' + esc(new Date(h.time).toLocaleString('id-ID', {
