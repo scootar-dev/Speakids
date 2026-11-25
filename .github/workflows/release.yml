@@ -1,0 +1,70 @@
+name: Build & Release SpeaKids
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # --- Buat ZIP distribusi (tanpa file build/dev) ---
+      - name: Package SpeaKids
+        run: |
+          mkdir -p dist
+          # Salin semua file yang perlu masuk ke paket distribusi
+          rsync -av --progress . dist/SpeaKids/ \
+            --exclude='.git' \
+            --exclude='.github' \
+            --exclude='.dart_tool' \
+            --exclude='build' \
+            --exclude='android' \
+            --exclude='dist' \
+            --exclude='.gitignore' \
+            --exclude='pubspec.lock' \
+            --exclude='pronunciation_backend/.pytest_cache' \
+            --exclude='pronunciation_backend/.venv' \
+            --exclude='pronunciation_backend/model_cache' \
+            --exclude='pronunciation_backend/app/__pycache__' \
+            --exclude='pronunciation_backend/tests/__pycache__' \
+            --exclude='test'
+          cd dist
+          zip -r SpeaKids.zip SpeaKids/
+
+      # --- Upload sebagai GitHub Actions Artifact (bisa diunduh dari tab Actions) ---
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: SpeaKids
+          path: dist/SpeaKids.zip
+          retention-days: 90
+
+      # --- Buat Release otomatis dengan tag tanggal (bisa diunduh dari tab Releases) ---
+      - name: Generate release tag
+        id: tag
+        run: echo "tag=v$(date +'%Y.%m.%d-%H%M')" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag.outputs.tag }}
+          name: "SpeaKids ${{ steps.tag.outputs.tag }}"
+          body: |
+            ## 📦 Download SpeaKids
+
+            Klik file **SpeaKids.zip** di bawah untuk mengunduh aplikasi.
+
+            ### Cara menjalankan:
+            1. Ekstrak file ZIP
+            2. Klik dua kali **`Jalankan-Web.cmd`** (butuh Node.js)
+            3. Atau buka **`MULAI-DI-SINI.html`** langsung di Chrome/Edge
+
+            ---
+            *Build otomatis dari commit ${{ github.sha }}*
+          files: dist/SpeaKids.zip
+          generate_release_notes: true

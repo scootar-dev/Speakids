@@ -1,0 +1,19 @@
+name: speakids
+description: Petualangan belajar bahasa Inggris bersama Piko.
+publish_to: none
+version: 1.0.0+1
+environment:
+  sdk: '>=3.7.0 <4.0.0'
+  flutter: '>=3.29.0'
+dependencies:
+  flutter:
+    sdk: flutter
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/app/
+    - assets/app/art/
+    - assets/app/audio/

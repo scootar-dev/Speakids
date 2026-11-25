@@ -1,0 +1,95 @@
+name: SpeaKids pronunciation
+on:
+  push:
+    branches: [main]
+    paths: ['pronunciation_backend/**', '.github/workflows/pronunciation.yml']
+  pull_request:
+    paths: ['pronunciation_backend/**', '.github/workflows/pronunciation.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: speakids-pronunciation-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: pronunciation_backend/requirements.txt
+      - run: pip install -r requirements.txt
+        working-directory: pronunciation_backend
+      - run: python -m pytest -q
+        working-directory: pronunciation_backend
+      - run: bash -n pronunciation_backend/deploy/deploy.sh
+      - run: docker compose -f pronunciation_backend/compose.production.yaml config --no-env-resolution --quiet
+        env:
+          SPEAKIDS_IMAGE: ghcr.io/example/speakids@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+  build:
+    needs: test
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image: ${{ steps.ref.outputs.image }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: name
+        env:
+          REPO: ${{ github.repository }}
+        run: echo "value=ghcr.io/${REPO,,}-pronunciation" >> "$GITHUB_OUTPUT"
+      - uses: docker/build-push-action@v6
+        id: build
+        with:
+          context: pronunciation_backend
+          push: true
+          platforms: linux/amd64
+          tags: ${{ steps.name.outputs.value }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - id: ref
+        env:
+          NAME: ${{ steps.name.outputs.value }}
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: echo "image=$NAME@$DIGEST" >> "$GITHUB_OUTPUT"
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - name: Deploy over verified SSH
+        env:
+          SSH_KEY: ${{ secrets.SPEAKIDS_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.SPEAKIDS_KNOWN_HOSTS }}
+          HOST: ${{ secrets.SPEAKIDS_HOST }}
+          USER: ${{ secrets.SPEAKIDS_USER }}
+          PORT: ${{ secrets.SPEAKIDS_SSH_PORT }}
+          IMAGE: ${{ needs.build.outputs.image }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          PORT="${PORT:-22}"
+          [[ "$PORT" =~ ^[0-9]+$ ]]
+          [[ "$HOST" =~ ^[a-zA-Z0-9.-]+$ ]]
+          [[ "$USER" =~ ^[a-zA-Z0-9_-]+$ ]]
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/speakids
+          chmod 600 ~/.ssh/speakids
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          trap 'rm -f ~/.ssh/speakids' EXIT
+          opts=(-i ~/.ssh/speakids -o BatchMode=yes -o StrictHostKeyChecking=yes)
+          scp "${opts[@]}" -P "$PORT" pronunciation_backend/compose.production.yaml pronunciation_backend/deploy/deploy.sh "$USER@$HOST:/opt/speakids-pronunciation/"
+          ssh "${opts[@]}" -p "$PORT" "$USER@$HOST" "bash /opt/speakids-pronunciation/deploy.sh '$IMAGE'"

@@ -1,0 +1,47 @@
+const fs = require('node:fs');
+const assert = require('node:assert/strict');
+const { PGlite } = require(process.env.PGLITE_MODULE || '@electric-sql/pglite');
+(async () => {
+  const db = new PGlite();
+  try {
+    await db.exec(`create role anon; create role authenticated;
+      create schema auth; create table auth.users(id uuid primary key,raw_user_meta_data jsonb);
+      create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$;
+      grant usage on schema auth to authenticated; grant execute on function auth.uid() to authenticated;`);
+    const sql = fs.readFileSync(require('node:path').join(__dirname,'../supabase_schema.sql'),'utf8');
+    await db.exec(sql); await db.exec(sql);
+    const a='00000000-0000-0000-0000-000000000001',b='00000000-0000-0000-0000-000000000002';
+    await db.exec(`insert into auth.users values('${a}','{"name":"A"}'),('${b}','{"name":"B"}');
+      grant select,insert,update on all tables in schema public to authenticated;
+      set role authenticated; set request.jwt.claim.sub='${a}';`);
+    const p={name:'A',grade:'2',stars:30,audio:false,speaking:true,done:[2,0,0,0],missions:{'0-2':{stage:3,card:2,final:0}},history:[{id:'event-1',title:'Lesson',note:'done',time:'2026-11-20T00:00:00Z'}]};
+    const sync=async value=>(await db.query('select speakids_sync($1::jsonb) as data',[JSON.stringify(value)])).rows[0].data;
+    let data=await sync(p); await sync(p);
+    assert.equal((await db.query('select count(*)::int as n from learning_history')).rows[0].n,1);
+    data=await sync({...p,stars:5,done:[1,0,0,0],speaking:false});
+    assert.equal(data.stars,30);assert.equal(data.done[0],2);assert.equal(data.speaking,true);assert.equal(data.audio,false);
+    data=await sync({...p,done:[3,0,0,0]});assert.deepEqual(data.missions,{});
+    await db.exec(`set request.jwt.claim.sub='${b}'`);
+    assert.equal((await db.query('select count(*)::int as n from learning_history')).rows[0].n,0);
+    await assert.rejects(db.exec(`insert into learning_history(user_id,title,note) values('${a}','bad','bad')`));
+    await db.exec('reset role');
+    const contentSql=fs.readFileSync(require('node:path').join(__dirname,'../supabase_content.sql'),'utf8');
+    await db.exec(contentSql);await db.exec(contentSql);
+    await db.exec(`insert into content_admins values('${a}');set role authenticated;set request.jwt.claim.sub='${b}';`);
+    const cards=JSON.stringify(['A','B','C'].map(letter=>({letter,en:letter,id:'Huruf '+letter,pic:''})));
+    const publish=rev=>db.query("select (save_learning_level(0,0,'Huruf awal',$1::jsonb,true,$2)).revision as revision",[cards,rev]);
+    await assert.rejects(publish(0));
+    await db.exec(`set request.jwt.claim.sub='${a}'`);
+    assert.equal((await publish(0)).rows[0].revision,1);
+    assert.equal((await publish(1)).rows[0].revision,2);
+    await assert.rejects(publish(1));
+    await assert.rejects(db.exec("insert into learning_levels values(0,1,'Bypass','[]',false,1,now())"));
+    await db.exec("select save_learning_level(0,0,'Dihapus','[]',false,2)");
+    await db.exec('set role anon');
+    const disabled=(await db.query('select * from learning_levels')).rows[0];
+    assert.equal(disabled.published,false);assert.deepEqual(disabled.items,[]);
+    await assert.rejects(publish(3));
+    console.log('PASS: admin CRUD, concurrent edit rejection, public read, non-admin write denial, disabled content');
+    console.log('PASS: SQL rerunnable, authenticated RPC, deduplication, monotonic progress, badge/audio, stale mission cleanup, cross-account RLS');
+  } finally { await db.close(); }
+})().catch(error=>{console.error(error);process.exitCode=1;});
