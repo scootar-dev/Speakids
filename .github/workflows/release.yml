@@ -13,11 +13,31 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # --- Buat ZIP distribusi (tanpa file build/dev) ---
-      - name: Package SpeaKids
+      # --- Setup Java & Flutter untuk build APK Android ---
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'gradle'
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      - name: Build Android APK
+        run: |
+          flutter pub get
+          flutter build apk --release
+          mkdir -p dist
+          cp build/app/outputs/flutter-apk/app-release.apk dist/SpeaKids.apk
+
+      # --- Buat ZIP distribusi untuk PC/Web (tanpa file build/dev) ---
+      - name: Package SpeaKids Web/PC ZIP
         run: |
           mkdir -p dist
-          # Salin semua file yang perlu masuk ke paket distribusi
           rsync -av --progress . dist/SpeaKids/ \
             --exclude='.git' \
             --exclude='.github' \
@@ -37,10 +57,17 @@ jobs:
           zip -r SpeaKids.zip SpeaKids/
 
       # --- Upload sebagai GitHub Actions Artifact (bisa diunduh dari tab Actions) ---
-      - name: Upload build artifact
+      - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: SpeaKids
+          name: SpeaKids-Android-APK
+          path: dist/SpeaKids.apk
+          retention-days: 90
+
+      - name: Upload Web/PC ZIP artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: SpeaKids-Web-PC
           path: dist/SpeaKids.zip
           retention-days: 90
 
@@ -57,15 +84,18 @@ jobs:
           body: |
             ## 📦 Download SpeaKids
 
-            Klik file **SpeaKids.zip** di bawah untuk mengunduh aplikasi.
+            ### 📱 Untuk HP Android:
+            1. Download file **`SpeaKids.apk`** di bawah (bukan yang `.zip`)
+            2. Tap file **`SpeaKids.apk`** yang sudah terunduh untuk langsung menginstal (tidak perlu ekstrak)
+            3. Jika muncul peringatan izin, aktifkan *"Izinkan dari sumber ini"* (*Install unknown apps*)
 
-            ### Cara menjalankan:
-            1. Ekstrak file ZIP
+            ### 💻 Untuk Komputer (Windows / Web):
+            1. Download **`SpeaKids.zip`** lalu ekstrak
             2. Klik dua kali **`Jalankan-Web.cmd`** (butuh Node.js)
-            3. Atau buka **`MULAI-DI-SINI.html`** langsung di Chrome/Edge
 
             ---
             *Build otomatis dari commit ${{ github.sha }}*
-          files: dist/SpeaKids.zip
+          files: |
+            dist/SpeaKids.apk
+            dist/SpeaKids.zip
           generate_release_notes: true
-
